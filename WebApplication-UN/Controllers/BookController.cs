@@ -1,69 +1,81 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using WebApplication_UN.Data;
-using WebApplication_UN.Models;
+using Microsoft.Extensions.Logging;
+using Library.Application.Services;
+using Library.Application.DTOs;
 
 namespace WebApplication_UN.Controllers
 {
-    namespace LibraryApi.Controllers
+    [ApiController]
+    [Route("api/[controller]")]
+    public class BooksController : ControllerBase
     {
-        [Route("api/[controller]")]
-        [ApiController]
-        public class BooksController : ControllerBase
+        private readonly IBookService _service;
+        private readonly ILogger<BooksController> _logger;
+
+        public BooksController(IBookService service, ILogger<BooksController> logger)
         {
-            private readonly LibraryContext _context;
+            _service = service;
+            _logger = logger;
+        }
 
-            public BooksController(LibraryContext context)
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            _logger.LogInformation("Request: GET all books");
+
+            var list = await _service.GetAllAsync();
+
+            _logger.LogInformation("Response: {Count} books returned", list.Count);
+            return Ok(list);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Get(int id)
+        {
+            _logger.LogInformation("Request: GET book {Id}", id);
+
+            var b = await _service.GetByIdAsync(id);
+            if (b == null)
             {
-                _context = context;
+                _logger.LogWarning("Book {Id} not found", id);
+                return NotFound();
             }
 
-            [HttpGet]
-            public async Task<IActionResult> GetBooks()
-            {
-                var books = await _context.Books.Include(b => b.Authors).ToListAsync();
-                return Ok(books);
-            }
+            _logger.LogInformation("Book {Id} found", id);
+            return Ok(b);
+        }
 
-            [HttpGet("{id}")]
-            public async Task<IActionResult> GetBook(int id)
-            {
-                var book = await _context.Books
-                    .Include(b => b.Authors)
-                    .FirstOrDefaultAsync(b => b.BookId == id);
+        [HttpPost]
+        public async Task<IActionResult> Create(BookDto dto)
+        {
+            _logger.LogInformation("Request: POST create book with Title={Title}", dto.Title);
 
-                if (book == null) return NotFound();
-                return Ok(book);
-            }
+            var id = await _service.CreateAsync(dto);
 
-            [HttpPost]
-            public async Task<IActionResult> CreateBook(Book book)
-            {
-                _context.Books.Add(book);
-                await _context.SaveChangesAsync();
-                return CreatedAtAction(nameof(GetBook), new { id = book.BookId }, book);
-            }
+            _logger.LogInformation("Book created with Id={Id}", id);
+            return CreatedAtAction(nameof(Get), new { id }, id);
+        }
 
-            [HttpPut("{id}")]
-            public async Task<IActionResult> UpdateBook(int id, Book book)
-            {
-                if (id != book.BookId) return BadRequest();
-                _context.Entry(book).State = EntityState.Modified;
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(int id, BookDto dto)
+        {
+            _logger.LogInformation("Request: PUT update book {Id}", id);
 
-            [HttpDelete("{id}")]
-            public async Task<IActionResult> DeleteBook(int id)
-            {
-                var book = await _context.Books.FindAsync(id);
-                if (book == null) return NotFound();
+            await _service.UpdateAsync(id, dto);
 
-                _context.Books.Remove(book);
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
+            _logger.LogInformation("Book {Id} updated (if existed)", id);
+            return NoContent();
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            _logger.LogInformation("Request: DELETE book {Id}", id);
+
+            await _service.DeleteAsync(id);
+
+            _logger.LogInformation("Book {Id} deleted (if existed)", id);
+            return NoContent();
         }
     }
 }
-

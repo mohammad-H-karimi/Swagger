@@ -1,10 +1,14 @@
+using Library.Infrastructure.Data;
+using Library.Infrastructure.Repositories;
+using Library.Infrastructure.Services;
+using Library.Application.Services;
+using Library.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using Library.API.Middleware; 
 
-using WebApplication_UN.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 
 
 builder.Services.AddDbContext<LibraryContext>(options =>
@@ -24,6 +28,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
 app.UseSwaggerUI();
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 
